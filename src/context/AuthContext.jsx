@@ -75,9 +75,9 @@ export const AuthContextProvider = ({ children }) => {
           setProfile(JSON.parse(localStorage.getItem("profile")));
           return;
         }
-        const response = await apiClient.get(`/api/users/profile`);
-        setProfile(response.data.data);
-        localStorage.setItem("profile", JSON.stringify(response.data.data));
+        // const response = await apiClient.get(`/api/users/profile`);
+        // setProfile(response.data.data);
+        // localStorage.setItem("profile", JSON.stringify(response.data.data));
       };
       fetchProfileData();
     }
