@@ -56,15 +56,20 @@ const Promotions = () => {
   const [filterStatus, setFilterStatus] = useState(null);
 
   // Fetch promotions data
-  const fetchPromotions = async (page = currentPage, size = pageSize, status = filterStatus) => {
+  const fetchPromotions = async (
+    page = currentPage,
+    size = pageSize,
+    status = filterStatus,
+    search = searchText
+  ) => {
     try {
       setLoading(true);
       const response = await apiClient.get("/api/promotions", {
         params: {
           page: page,
           size,
-          search: searchText,
-          status: status,
+          status: status !== undefined ? status : "",
+          search: search !== undefined ? search : "",
         },
       });
 
@@ -155,7 +160,7 @@ const Promotions = () => {
     try {
       await apiClient.delete(`/api/promotions/${id}`);
       message.success("Promotion deleted successfully");
-      fetchPromotions();
+      fetchPromotions(currentPage, pageSize, filterStatus, searchText);
     } catch (error) {
       console.error("Error deleting promotion:", error);
       message.error("Failed to delete promotion");
@@ -164,14 +169,14 @@ const Promotions = () => {
 
   // Search handler
   const handleSearch = (value) => {
-    setSearchText(value);
-    fetchPromotions(1, pageSize, filterStatus);
+    setSearchText(value || ""); // Ensure empty string when cleared
+    fetchPromotions(1, pageSize, filterStatus, value || "");
   };
 
   // Status filter handler
   const handleStatusFilter = (value) => {
     setFilterStatus(value);
-    fetchPromotions(1, pageSize, value);
+    fetchPromotions(1, pageSize, value === undefined ? "" : value, searchText);
   };
 
   // Pagination handler
@@ -314,12 +319,15 @@ const Promotions = () => {
             onChange={(e) => handleSearch(e.target.value)}
             style={{ width: 250 }}
             allowClear
+            onPressEnter={(e) => handleSearch(e.target.value)}
           />
+
           <Select
             placeholder="Filter by status"
             style={{ width: 150 }}
             onChange={handleStatusFilter}
             allowClear
+            value={filterStatus}
           >
             <Option value="active">Active</Option>
             <Option value="inactive">Inactive</Option>
