@@ -36,13 +36,13 @@ const { TabPane } = Tabs;
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [size, setSize] = useState(10);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [modalType, setModalType] = useState("add"); // 'add', 'edit', 'view'
+  const [modalType, setModalType] = useState("add");
   const [currentProduct, setCurrentProduct] = useState(null);
   const [activeTab, setActiveTab] = useState("1");
   const [form] = Form.useForm();
@@ -54,39 +54,47 @@ const Products = () => {
   const [coverImageURL, setCoverImageURL] = useState("");
   const [additionalImageURLs, setAdditionalImageURLs] = useState([]);
 
+  const fetchData = async (page = currentPage, size = pageSize) => {
+    try {
+      setLoading(true);
+      const productsResponse = await apiClient.get("/api/products", {
+        params: {
+          page: page, // Convert to 0-based for backend
+          size: size,
+        },
+      });
+
+      const data = productsResponse.data.data;
+
+      const formattedProducts = data.products.map((product) => ({
+        ...product,
+        categoryId: product.categoryId,
+        isBestseller: product.isBestseller,
+        isFeatured: product.isFeatured,
+        isNew: product.isNew,
+        cover: product.cover || "https://via.placeholder.com/150",
+        images: product.images || [],
+        productVariants: product.productVariants || [],
+      }));
+
+      setProducts(formattedProducts);
+      setTotalPages(data.totalPages);
+      setTotalElements(data.totalElements);
+      setCurrentPage(page);
+      setPageSize(size);
+
+      const categoriesResponse = await apiClient.get("/api/categories/all");
+      setCategories(categoriesResponse.data.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      message.error("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setLoading(true);
-    const fetchData = async () => {
-      try {
-        const productsResponse = await apiClient.get("/api/products");
-        const data = productsResponse.data.data;
-
-        const formattedProducts = data.products.map((product) => ({
-          ...product,
-          categoryId: product.categoryId,
-          isBestseller: product.isBestseller,
-          isFeatured: product.isFeatured,
-          isNew: product.isNew,
-          cover: product.cover || "https://via.placeholder.com/150",
-          images: product.images || [],
-        }));
-
-        setProducts(formattedProducts);
-        setTotalPages(data.totalPages);
-        setTotalElements(data.totalElements);
-        setSize(data.size);
-        setPage(data.page);
-
-        const categoriesResponse = await apiClient.get("/api/categories");
-        setCategories(categoriesResponse.data.data.categories);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchData(currentPage, pageSize);
   }, []);
 
   const showModal = (type, product = null) => {
@@ -110,35 +118,9 @@ const Products = () => {
         isNew: product.isNew,
         isBestseller: product.isBestseller,
         categoryId: product.categoryId,
+        productVaraints: product.productVariants || [],
       });
 
-      // Mock variants
-      setProductVariants([
-        {
-          id: "1",
-          product_id: product.id,
-          size: "M",
-          color_name: "Red",
-          color_hex: "#ff0000",
-          price: product.price,
-          original_price: product.original_price,
-          quantity: 100,
-          sku: `${product.slug}-M-RED`,
-        },
-        {
-          id: "2",
-          product_id: product.id,
-          size: "L",
-          color_name: "Blue",
-          color_hex: "#0000ff",
-          price: product.price + 5,
-          original_price: product.original_price + 5,
-          quantity: 80,
-          sku: `${product.slug}-L-BLUE`,
-        },
-      ]);
-
-      // Mock image data
       setFileList([
         {
           uid: "1",
@@ -157,11 +139,17 @@ const Products = () => {
           url: image,
         }))
       );
+
+      setCoverImageURL(product.cover);
+      setAdditionalImageURLs(product.images || []);
+      setProductVariants(product.productVariants || []);
     } else {
       form.resetFields();
       setFileList([]);
       setAdditionalImages([]);
       setProductVariants([]);
+      setCoverImageURL(""); // Explicitly reset
+      setAdditionalImageURLs([]); // Explicitly reset
     }
   };
 
@@ -189,7 +177,7 @@ const Products = () => {
         }
       );
 
-      const imageUrl = response.data.url;
+      const imageUrl = response.data.data.url;
       setCoverImageURL(imageUrl);
       onSuccess(response, file);
     } catch (error) {
@@ -213,7 +201,7 @@ const Products = () => {
         }
       );
 
-      const imageUrl = response.data.url;
+      const imageUrl = response.data.data.url;
       setAdditionalImageURLs((prev) => [...prev, imageUrl]);
       onSuccess(response, file);
     } catch (error) {
@@ -243,35 +231,36 @@ const Products = () => {
 
           const formattedVariants = productVariants.map((variant) => ({
             size: variant.size,
-            colorName: variant.color_name,
-            colorHex: variant.color_hex,
+            colorName: variant.colorName,
+            colorHex: variant.colorHex,
             price: parseFloat(variant.price),
-            originalPrice: parseFloat(
-              variant.original_price || variant.originalPrice || 0
-            ),
+            originalPrice: parseFloat(variant.originalPrice || 0),
             quantity: parseInt(variant.quantity),
           }));
 
-          // Create product data with image URLs
+          // Create product data with image URLs and product variants
           const productData = {
             ...values,
-            cover: coverImageURL,
-            images: additionalImageURLs,
+            cover: coverImageURL || "", // Provide fallback empty string
+            images: additionalImageURLs || [], // Provide fallback empty array
             productVariants: formattedVariants,
           };
 
-          console.log(productData);
-
           // Send the data to your API
-          const response = await apiClient.post("/api/products", productData, {
-            headers: { "Content-Type": "application/json" },
-          });
+          if (modalType === "add") {
+            await apiClient.post("/api/products", productData, {
+              headers: { "Content-Type": "application/json" },
+            });
+          } else if (modalType === "edit") {
+            await apiClient.put(`/api/products`, productData, {
+              headers: { "Content-Type": "application/json" },
+            });
+          }
 
           message.success(
             `Product ${modalType === "add" ? "added" : "updated"} successfully!`
           );
           setVisible(false);
-
           // Refresh the products list
           fetchData();
         } catch (error) {
@@ -281,15 +270,22 @@ const Products = () => {
           setLoading(false);
         }
       })
-      .catch((info) => {
-        console.log("Validate Failed:", info);
+      .catch((error) => {
+        console.error("Validation failed:", error);
+        message.error("Please fix the errors in the form");
       });
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     // Delete logic would go here
-    setProducts(products.filter((product) => product.id !== id));
-    message.success("Product deleted successfully!");
+    try {
+      const response = await apiClient.delete(`/api/products/${id}`);
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      message.error("Failed to delete product");
+      return;
+    }
   };
 
   const handleSearch = (value) => {
@@ -305,8 +301,8 @@ const Products = () => {
         const newVariant = {
           id: Date.now().toString(), // Temporary ID for demo purposes
           size: values.size,
-          colorName: values.color_name,
-          colorHex: values.color_hex,
+          colorName: values.colorName,
+          colorHex: values.colorHex,
           price: values.price,
           originalPrice: values.originalPrice,
           quantity: values.quantity,
@@ -324,7 +320,6 @@ const Products = () => {
     setProductVariants(productVariants.filter((v) => v.id !== variantId));
     message.success("Variant deleted successfully!");
   };
-
 
   const columns = [
     {
@@ -418,7 +413,7 @@ const Products = () => {
     {
       title: "Color",
       dataIndex: "colorName",
-      key: "color_name",
+      key: "colorName",
       render: (text, record) => (
         <Space>
           <div
@@ -465,6 +460,10 @@ const Products = () => {
     },
   ];
 
+  const handlePaginationChange = (page, pageSize) => {
+    fetchData(page, pageSize);
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -491,6 +490,17 @@ const Products = () => {
         dataSource={products}
         rowKey="id"
         loading={loading}
+        pagination={{
+          current: currentPage,
+          pageSize: pageSize,
+          total: totalElements,
+          showSizeChanger: true,
+          pageSizeOptions: ["10", "20", "50"],
+          showTotal: (total, range) =>
+            `${range[0]}-${range[1]} of ${total} items`,
+          onChange: handlePaginationChange,
+          onShowSizeChange: handlePaginationChange,
+        }}
       />
 
       <Modal
@@ -524,6 +534,9 @@ const Products = () => {
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
           <TabPane tab="Basic Info" key="1">
             <Form form={form} layout="vertical" disabled={modalType === "view"}>
+              <Form.Item name="id" hidden>
+                <Input type="hidden" />
+              </Form.Item>
               <Form.Item
                 name="name"
                 label="Product Name"
@@ -534,13 +547,7 @@ const Products = () => {
                 <Input />
               </Form.Item>
 
-              <Form.Item
-                name="slug"
-                label="Slug"
-                rules={[
-                  { required: true, message: "Please enter product slug" },
-                ]}
-              >
+              <Form.Item name="slug" label="Slug">
                 <Input />
               </Form.Item>
 
@@ -639,7 +646,7 @@ const Products = () => {
                 onChange={({ fileList }) => setFileList(fileList)}
                 customRequest={customUploadCover}
                 maxCount={1}
-                disabled={modalType === "view"}
+                disabled={modalType === "view" || loading}
                 onRemove={() => {
                   setCoverImageURL("");
                   return true;
@@ -710,7 +717,7 @@ const Products = () => {
                     </Col>
                     <Col span={8}>
                       <Form.Item
-                        name="color_name"
+                        name="colorName"
                         label="Color Name"
                         rules={[{ required: true }]}
                       >
@@ -719,7 +726,7 @@ const Products = () => {
                     </Col>
                     <Col span={8}>
                       <Form.Item
-                        name="color_hex"
+                        name="colorHex"
                         label="Color Hex"
                         rules={[{ required: true }]}
                       >
