@@ -10,6 +10,8 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   OrderedListOutlined,
+  GiftOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
@@ -28,9 +30,11 @@ const MainLayout = () => {
     if (path === "/" || path === "/home") return "1";
     if (path.includes("/products")) return "2";
     if (path.includes("/categories")) return "3";
-    if (path.includes("/users")) return "4";
-    if (path.includes("/accounts")) return "5";
-    if (path.includes("/orders")) return "6";
+    if (path.includes("/orders")) return "4";
+    if (path.includes("/promotions")) return "5";
+    if (path.includes("/payment-methods")) return "6";
+    if (path.includes("/users")) return "7";
+    if (path.includes("/accounts")) return "8";
     return "1";
   };
 
@@ -85,18 +89,23 @@ const MainLayout = () => {
               },
               {
                 key: "4",
-                icon: <TeamOutlined />,
-                label: <Link to="/users">Users</Link>,
+                icon: <OrderedListOutlined />,
+                label: <Link to="/orders">Orders</Link>,
               },
               {
                 key: "5",
-                icon: <UserOutlined />,
-                label: <Link to="/accounts">Accounts</Link>,
+                icon: <GiftOutlined />,
+                label: <Link to="/promotions">Promotions</Link>,
               },
               {
                 key: "6",
-                icon: <OrderedListOutlined />,
-                label: <Link to="/orders">Orders</Link>,
+                icon: <BankOutlined />,
+                label: <Link to="/payment-methods">Payment methods</Link>,
+              },
+              {
+                key: "7",
+                icon: <UserOutlined />,
+                label: <Link to="/users">Users</Link>,
               },
             ]}
           />

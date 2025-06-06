@@ -13,6 +13,8 @@ import Users from "./pages/Users";
 import PrivateRoute from "./components/PrivateRoute";
 import PublicRoute from "./components/PublicRoute";
 import Orders from "./pages/Orders";
+import Promotions from "./pages/Promotions";
+import PaymentMethods from "./pages/PaymentMethods";
 
 function App() {
   return (
@@ -82,6 +84,22 @@ function App() {
               element={
                 <PrivateRoute>
                   <Orders />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="promotions"
+              element={
+                <PrivateRoute>
+                  <Promotions />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="payment-methods"
+              element={
+                <PrivateRoute>
+                  <PaymentMethods />
                 </PrivateRoute>
               }
             />
