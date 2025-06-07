@@ -61,7 +61,7 @@ const Orders = () => {
   const fetchOrders = async (page = 1, size = 10) => {
     setLoading(true);
     try {
-      const response = await apiClient.get("/api/orders", {
+      const response = await apiClient.get("/api/orders/all", {
         params: { page, size }
       });
       
