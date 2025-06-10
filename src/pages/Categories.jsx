@@ -24,6 +24,10 @@ import {
   UploadOutlined,
   FolderOutlined,
   FolderAddOutlined,
+  LoadingOutlined,
+  EyeOutlined,
+  ZoomOutOutlined,
+  ZoomInOutlined,
 } from "@ant-design/icons";
 import apiClient from "../services/apiClient";
 
@@ -42,6 +46,8 @@ const Categories = () => {
   const [totalElements, setTotalElements] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   const [treeData, setTreeData] = useState([]);
 
@@ -82,6 +88,13 @@ const Categories = () => {
     }
   };
 
+  const uploadButton = (
+    <div>
+      {uploadLoading ? <LoadingOutlined /> : <PlusOutlined />}
+      <div style={{ marginTop: 8 }}>Upload</div>
+    </div>
+  );
+
   useEffect(() => {
     fetchData(currentPage, pageSize);
   }, []);
@@ -95,18 +108,58 @@ const Categories = () => {
       form.setFieldsValue({
         id: category.id,
         name: category.name,
+        image: category.image ? category.image : "",
         parentId: category.parentId,
         description: category.description,
         slug: category.slug,
       });
+      setImageUrl(category.image || "");
     } else {
       form.resetFields();
+      setImageUrl("");
     }
   };
 
   const handleCancel = () => {
     setVisible(false);
     form.resetFields();
+  };
+
+  const handleImageUpload = async (options) => {
+    const { file, onSuccess, onError } = options;
+
+    // Start upload loading state
+    setUploadLoading(true);
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      // Assuming your API has an endpoint for file uploads
+      const response = await apiClient.post(
+        "/api/files/images/upload",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      // Get image URL from response
+      const imageUrl = response.data.data.url;
+      setImageUrl(imageUrl);
+
+      // Notify upload success
+      message.success("Image uploaded successfully");
+      onSuccess(response, file);
+    } catch (error) {
+      console.error("Failed to upload image:", error);
+      message.error("Failed to upload image");
+      onError(error);
+    } finally {
+      setUploadLoading(false);
+    }
   };
 
   const handleOk = () => {
@@ -121,6 +174,8 @@ const Categories = () => {
             ...values,
             // Convert empty string or undefined to null for parentId
             parentId: values.parentId || null,
+            // Include image URL if available
+            image: imageUrl || null,
           };
 
           let response;
@@ -185,16 +240,6 @@ const Categories = () => {
   };
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      render: (id) => (
-        <Tag color="blue" style={{ cursor: "pointer" }}>
-          {id}
-        </Tag>
-      ),
-    },
-    {
       title: "Name",
       dataIndex: "name",
       key: "name",
@@ -202,6 +247,24 @@ const Categories = () => {
       filteredValue: searchText ? [searchText] : null,
       onFilter: (value, record) =>
         record.name.toLowerCase().includes(value.toLowerCase()),
+    },
+    {
+      title: "Image",
+      dataIndex: "image",
+      key: "image",
+      render: (image) =>
+        image ? (
+          <Image
+            src={image}
+            alt="Category"
+            width={50}
+            height={50}
+            style={{ objectFit: "cover" }}
+            fallback="data:image/png;base64,..." // Hiển thị ảnh mặc định khi lỗi
+          />
+        ) : (
+          <span>No image</span>
+        ),
     },
     {
       title: "Parent Category",
@@ -224,6 +287,11 @@ const Categories = () => {
       key: "actions",
       render: (_, record) => (
         <Space size="small">
+          <Button
+            icon={<ZoomInOutlined />}
+            size="small"
+            onClick={() => showModal("view", record)}
+          />
           <Button
             icon={<EditOutlined />}
             size="small"
@@ -336,6 +404,39 @@ const Categories = () => {
             rules={[{ required: true, message: "Please enter category name" }]}
           >
             <Input />
+          </Form.Item>
+          <Form.Item
+            label="Category Image"
+            tooltip="Upload an image for this category"
+          >
+            <Upload
+              name="image"
+              listType="picture-card"
+              className="avatar-uploader"
+              showUploadList={false}
+              customRequest={handleImageUpload}
+              beforeUpload={(file) => {
+                const isImage = file.type.startsWith("image/");
+                if (!isImage) {
+                  message.error("You can only upload image files!");
+                }
+                const isLt2M = file.size / 1024 / 1024 < 2;
+                if (!isLt2M) {
+                  message.error("Image must be smaller than 2MB!");
+                }
+                return isImage && isLt2M;
+              }}
+            >
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="category"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                uploadButton
+              )}
+            </Upload>
           </Form.Item>
 
           <Form.Item
